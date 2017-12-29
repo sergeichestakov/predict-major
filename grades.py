@@ -1,13 +1,6 @@
 import psycopg2
-
-class Student:
-    def __init__(self, major, classes):
-        self.major = major
-        self.classes = classes
-
-    def __str__(self):
-        return self.major + " Major. Classes Taken = " + ', '.join(self.classes)
-
+import tensorflow as tf
+import numpy as np
 
 #Queries the database for the ID and major of each student
 def getStudents(cur):
@@ -16,14 +9,17 @@ def getStudents(cur):
     cur.execute(sql)
     rows = cur.fetchall()
 
+    majors = []
+    classes = []
+
     students = {}
     for row in rows:
         pidm = row[0]
         major = row[1]
-        student = Student(major, getClasses(pidm))
-        students[pidm] = student
+        majors.append(major)
+        classes.append(getClasses(pidm))
 
-    return students
+    return majors, classes
 
 #Queries the database for every class that a student with a certain ID has taken and returns each of them in an array
 def getClasses(pidm):
@@ -39,10 +35,17 @@ def getClasses(pidm):
         classes.append(name)
     return classes
 
+#Trains the data
+def trainData(majors, classes):
+    train_input_fn = tf.estimator.inputs.numpy_input_fn(
+    x={"x": np.array(classes)},
+    y=np.array(majors),
+    num_epochs=None,
+    shuffle=True)
+
 #Connect to the database and execute queries
 if __name__ == "__main__":
     conn = psycopg2.connect("dbname='kys_development' user='Sergei' host='localhost' password=''")
     cur = conn.cursor()
-    students = getStudents(cur)
-    for i in students:
-        print(students[i])
+    majors, classes = getStudents(cur)
+    trainData(majors, classes)
